@@ -9,6 +9,10 @@ app = FastAPI(
 
 app.include_router(urls.router)
 
+@app.get("/")
+def home():
+    return {"message": "Welcome to Snipify "}
+
 @app.get("/health")
 def health():
     return {"status":"ok", "app":"Snipify"}
