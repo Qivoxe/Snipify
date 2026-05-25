@@ -1,50 +1,64 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.schemas import ShortenRequest, ShortenResponse, StatsResponse
 from app.utils import generate_short_code, validate_url
-from datetime import datetime
+from app.database import get_db
+from app.models import Url
 
 router = APIRouter()
-
-url_store: dict = {}
-click_store: dict = {}
-
-BASE_URL = "http://localhost:8000/"
+BASE_URL = "http://localhost:8000"
 
 @router.post("/shorten", response_model=ShortenResponse)
-def shorten_url(request: ShortenRequest):
+async def shorten_url(request: ShortenRequest, db: AsyncSession = Depends(get_db)):
     if not validate_url(request.long_url):
         raise HTTPException(status_code=400, detail="Invalid URL. Must start with http:// or https://")
 
     code = generate_short_code()
-    url_store[code] = {
-        "long_url": request.long_url,
-        "created_at": datetime.utcnow(),
-    }
-    click_store[code] = 0
+
+    # make sure code is unique
+    while True:
+        result = await db.execute(select(Url).where(Url.code == code))
+        if not result.scalar_one_or_none():
+            break
+        code = generate_short_code()
+
+    url = Url(code=code, long_url=request.long_url)
+    db.add(url)
+    await db.commit()
+    await db.refresh(url)
 
     return ShortenResponse(
         short_code=code,
         short_url=f"{BASE_URL}/{code}",
-        long_url=request.long_url
+        long_url=url.long_url
     )
 
 @router.get("/stats/{code}", response_model=StatsResponse)
-def get_stats(code: str):
-    if code not in url_store:
+async def get_stats(code: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Url).where(Url.code == code))
+    url = result.scalar_one_or_none()
+
+    if not url:
         raise HTTPException(status_code=404, detail="Short code not found")
 
     return StatsResponse(
-        short_code=code,
-        long_url=url_store[code]["long_url"],
-        click_count=click_store[code],
-        created_at=url_store[code]["created_at"]
+        short_code=url.code,
+        long_url=url.long_url,
+        click_count=url.click_count,
+        created_at=url.created_at
     )
 
 @router.get("/{code}")
-def redirect(code: str):
-    if code not in url_store:
+async def redirect(code: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Url).where(Url.code == code))
+    url = result.scalar_one_or_none()
+
+    if not url:
         raise HTTPException(status_code=404, detail="Short code not found")
 
-    click_store[code] += 1
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=url_store[code]["long_url"], status_code=307)
+    url.click_count += 1
+    await db.commit()
+
+    return RedirectResponse(url=url.long_url, status_code=307)
