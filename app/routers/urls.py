@@ -17,7 +17,7 @@ async def shorten_url(request: ShortenRequest, db: AsyncSession = Depends(get_db
 
     code = generate_short_code()
 
-    # make sure code is unique
+
     while True:
         result = await db.execute(select(Url).where(Url.code == code))
         if not result.scalar_one_or_none():
