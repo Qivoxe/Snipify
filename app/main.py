@@ -5,6 +5,34 @@ from app.database import engine, Base
 from app.cache import get_redis
 import asyncio
 
+async def sync_clicks_to_db():
+    from app.cache import get_redis
+    from app.database import AsyncSessionLocal
+    from app.models import Url
+    from sqlalchemy import select
+
+
+    while True:
+        await asyncio.sleep(300)
+        try:
+            r = await get_redis
+            keys = await r.keys("clicks:")
+            if not keys:
+                continue
+
+            async with AsyncSessionLocal() as db:
+                for key in keys:
+                    code = key.split(":")[1]
+                    if count:
+                        result = await db.execute(select(Url).where(Url.code == code))
+                        url = result.scalar_one_or_none()
+                        if url:
+                            url.click_count += int(count)
+                await db.commit()
+        except Exception as e:
+            print(f"Sync error: {e}")    
+
+            
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
