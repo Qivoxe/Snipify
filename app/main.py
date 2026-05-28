@@ -2,7 +2,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.routers import urls
 from app.database import engine, Base
-
+from app.cache import get_redis
+import asyncio
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
