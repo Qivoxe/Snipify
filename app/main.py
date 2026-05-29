@@ -1,9 +1,14 @@
+from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from app.routers import urls
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from app.routers import urls, analytics
 from app.database import engine, Base
 from app.cache import get_redis
 import asyncio
+
+limiter = Limiter(key_func=get_remote_address)
 
 async def sync_clicks_to_db():
     from app.cache import get_redis
@@ -32,7 +37,7 @@ async def sync_clicks_to_db():
         except Exception as e:
             print(f"Sync error: {e}")    
 
-            
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
@@ -40,9 +45,9 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
 
     yield
-
-
     await engine.dispose()
+
+
 
 
 app = FastAPI(
@@ -51,8 +56,11 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(urls.router)
+app.include_router(analytics.router)
 
 
 @app.get("/")
