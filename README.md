@@ -103,18 +103,6 @@ uvicorn app.main:app --reload
 
 Open `http://localhost:8000/docs`
 
-### Option 2 — With Docker (PostgreSQL + Redis)
-
-```bash
-git clone https://github.com/Qivoxe/Snipify.git
-cd Snipify
-cp .env.example .env
-docker compose up --build
-```
-
-Open `http://localhost:8000/docs`
-
----
 
 ## Environment Variables
 
