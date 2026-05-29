@@ -216,6 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
 venv/
 __pycache__/
 *.pyc
@@ -223,4 +224,3 @@ __pycache__/
 snipify.db
 *.egg-info/
 .DS_Store
-.env.example
