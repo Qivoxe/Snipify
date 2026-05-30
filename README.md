@@ -84,7 +84,7 @@ Background task (every 5 min)
 
 ## Run Locally
 
-### Option 1 — Without Docker (SQLite + local Redis)
+### Without Docker (SQLite + local Redis)
 
 ```bash
 # 1. Clone the repo
